@@ -60,7 +60,7 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			axis3 := ebiten.GamepadAxis(id, 3)
 
 			if math.Abs(axis2) > 0.2 {
-				value := int(axis2) * 30
+				value := int(axis2 * 30)
 
 				if value < 0 {
 					commandChannel <- drone.LeftCommand{-value}
@@ -70,7 +70,7 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			}
 
 			if math.Abs(axis3) > 0.2 {
-				value := int(axis3) * 30
+				value := int(axis3 * 30)
 
 				if value < 0 {
 					commandChannel <- drone.ForwardCommand{-value}
