@@ -18,7 +18,22 @@ const (
 	flipBackwardButton = 13
 	flipLeftButton = 14
 	flipRightButton = 15
+
+	deadZoneHorizontal = 0.5
+	deadZoneVertical = 0.5
 )
+
+func remapAxisInput(inputValue float64, deadZone float64, maxValue float64) int {
+	if math.Abs(inputValue) > deadZone {
+		if inputValue < 0 {
+			return int(((inputValue + deadZone) / (1.0 - deadZone)) * maxValue)
+		} else if inputValue > 0 {
+			return int(((inputValue - deadZone) / (1.0 - deadZone)) * maxValue)
+		}
+	}
+
+	return 0
+}
 
 func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 	var lastImage *ebiten.Image = nil
@@ -36,46 +51,42 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			axis0 := ebiten.GamepadAxis(id, 0)
 			axis1 := ebiten.GamepadAxis(id, 1)
 
-			if math.Abs(axis0) > 0.05 {
-				value := int(axis0 * 30)
-
-				if value < 0 {
-					commandChannel <- drone.RotateCounterClockwiseCommand{-value}
-				} else if value > 0 {
-					commandChannel <- drone.RotateClockwiseCommand{value}
+			rotation := remapAxisInput(axis0, deadZoneHorizontal, 30)
+			if rotation != 0 {
+				if rotation < 0 {
+					commandChannel <- drone.RotateCounterClockwiseCommand{-rotation}
+				} else if rotation > 0 {
+					commandChannel <- drone.RotateClockwiseCommand{rotation}
 				}
 			}
 
-			if math.Abs(axis1) > 0.05 {
-				value := int(axis1 * 30)
-
-				if value < 0 {
-					commandChannel <- drone.UpCommand{-value}
-				} else if value > 0 {
-					commandChannel <- drone.DownCommand{value}
+			altitude := remapAxisInput(axis1, deadZoneVertical, 30)
+			if altitude != 0 {
+				if altitude < 0 {
+					commandChannel <- drone.UpCommand{-altitude}
+				} else if altitude > 0 {
+					commandChannel <- drone.DownCommand{altitude}
 				}
 			}
 
 			axis2 := ebiten.GamepadAxis(id, 2)
 			axis3 := ebiten.GamepadAxis(id, 3)
 
-			if math.Abs(axis2) > 0.2 {
-				value := int(axis2 * 30)
-
-				if value < 0 {
-					commandChannel <- drone.LeftCommand{-value}
-				} else if value > 0 {
-					commandChannel <- drone.RightCommand{value}
+			horizontalMovement := remapAxisInput(axis2, deadZoneHorizontal, 20)
+			if horizontalMovement != 0 {
+				if horizontalMovement < 0 {
+					commandChannel <- drone.LeftCommand{-horizontalMovement}
+				} else if horizontalMovement > 0 {
+					commandChannel <- drone.RightCommand{horizontalMovement}
 				}
 			}
 
-			if math.Abs(axis3) > 0.2 {
-				value := int(axis3 * 30)
-
-				if value < 0 {
-					commandChannel <- drone.ForwardCommand{-value}
-				} else if value > 0 {
-					commandChannel <- drone.BackwardCommand{value}
+			verticalMovement := remapAxisInput(axis3, deadZoneVertical, 20)
+			if verticalMovement != 0 {
+				if verticalMovement < 0 {
+					commandChannel <- drone.ForwardCommand{-verticalMovement}
+				} else if verticalMovement > 0 {
+					commandChannel <- drone.BackwardCommand{verticalMovement}
 				}
 			}
 
