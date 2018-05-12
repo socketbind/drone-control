@@ -8,9 +8,20 @@ import (
 	"fmt"
 	"time"
 	"github.com/socketbind/drone-control/decoder"
+	"os"
 )
 
 func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{}) {
+	os.MkdirAll("recordings", os.ModePerm)
+	t := time.Now()
+
+	f, err := os.Create("recordings/" + t.Format("2006-01-02T15-04-05.nal"))
+	if err != nil {
+		panic("Unable to create recording file")
+	}
+
+	defer f.Close()
+
 	drone := tello.NewDriver("8890")
 
 	imageHandler := func(im *image.Image) {
@@ -30,6 +41,14 @@ func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{
 		drone.On(tello.VideoFrameEvent, func(data interface{}) {
 			pkt := data.([]byte)
 			decoder.Decode(pkt, imageHandler)
+
+			// dump NALs
+			_, err := f.Write(pkt)
+			if err != nil {
+				panic("Unable to write recording")
+			}
+
+			f.Sync()
 		})
 
 		for {
