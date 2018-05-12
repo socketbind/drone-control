@@ -7,6 +7,7 @@ Very early version with a lot of hacks.
 What works:
 * Basic controls using a gamepad (up, down, rotate left, rotate right, forward, backward, left, right)
 * Video stream
+* Flip controls work most of the time
 
 ## Controller mappings
 
@@ -23,6 +24,12 @@ These are meant for Dualshock 4 controllers. Yours might be completely different
 - Down - Backward
 - Left - Sideways left
 - Right - Sideways right
+
+### D-pad
+- Up - Flip forward
+- Back - Flip backward
+- Left - Flip left
+- Right - Flip right
 
 ### Buttons
 - X - Take off / Land (toggle)

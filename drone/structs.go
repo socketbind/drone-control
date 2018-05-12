@@ -39,3 +39,19 @@ type ForwardCommand struct {
 type BackwardCommand struct {
 	Value int
 }
+
+type FlipForwardCommand struct {
+
+}
+
+type FlipBackwardCommand struct {
+
+}
+
+type FlipLeftCommand struct {
+
+}
+
+type FlipRightCommand struct {
+
+}

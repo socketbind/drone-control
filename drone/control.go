@@ -21,7 +21,7 @@ func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{
 		drone.On(tello.ConnectedEvent, func(data interface{}) {
 			fmt.Println("Connected")
 			drone.StartVideo()
-			drone.SetVideoEncoderRate(4)
+			drone.SetVideoEncoderRate(5)
 			gobot.Every(100*time.Millisecond, func() {
 				drone.StartVideo()
 			})
@@ -66,6 +66,14 @@ func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{
 				case BackwardCommand:
 					log.Printf("Going backward %d", cmd.Value)
 					drone.Backward(cmd.Value)
+				case FlipForwardCommand:
+					drone.FrontFlip()
+				case FlipBackwardCommand:
+					drone.BackFlip()
+				case FlipLeftCommand:
+					drone.LeftFlip()
+				case FlipRightCommand:
+					drone.RightFlip()
 				}
 			}
 		}

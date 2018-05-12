@@ -14,6 +14,10 @@ const (
 	screenHeight = 720
 
 	takeOffButton = 1
+	flipForwardButton = 12
+	flipBackwardButton = 13
+	flipLeftButton = 14
+	flipRightButton = 15
 )
 
 func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
@@ -21,20 +25,6 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 	var tookOff = false
 
 	update := func (screen *ebiten.Image) error {
-		select {
-			case videoImage := <-videoChannel:
-				var err error
-				lastImage, err = ebiten.NewImageFromImage(*videoImage, ebiten.FilterDefault)
-				if err != nil {
-					panic("Unable to create image")
-				}
-			default:
-		}
-
-		if lastImage != nil {
-			screen.DrawImage(lastImage, nil)
-		}
-
 		for _, id := range inpututil.JustConnectedGamepadIDs() {
 			log.Printf("gamepad connected: id: %d", id)
 		}
@@ -47,7 +37,7 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			axis1 := ebiten.GamepadAxis(id, 1)
 
 			if math.Abs(axis0) > 0.05 {
-				value := int(axis0 * 100)
+				value := int(axis0 * 30)
 
 				if value < 0 {
 					commandChannel <- drone.RotateCounterClockwiseCommand{-value}
@@ -57,7 +47,7 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			}
 
 			if math.Abs(axis1) > 0.05 {
-				value := int(axis1 * 100)
+				value := int(axis1 * 30)
 
 				if value < 0 {
 					commandChannel <- drone.UpCommand{-value}
@@ -70,7 +60,7 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			axis3 := ebiten.GamepadAxis(id, 3)
 
 			if math.Abs(axis2) > 0.2 {
-				value := int(axis2) * 20
+				value := int(axis2) * 30
 
 				if value < 0 {
 					commandChannel <- drone.LeftCommand{-value}
@@ -80,7 +70,7 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 			}
 
 			if math.Abs(axis3) > 0.2 {
-				value := int(axis3) * 20
+				value := int(axis3) * 30
 
 				if value < 0 {
 					commandChannel <- drone.ForwardCommand{-value}
@@ -97,13 +87,27 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 				if inpututil.IsGamepadButtonJustReleased(id, b) {
 					log.Printf("button released: id: %d, button: %d", id, b)
 
-					if b == takeOffButton {
+					switch b {
+
+					case takeOffButton:
 						if tookOff {
 							commandChannel <- drone.LandCommand{}
 						} else {
 							commandChannel <- drone.TakeOffCommand{}
 						}
 						tookOff = !tookOff
+
+					case flipForwardButton:
+						commandChannel <- drone.FlipForwardCommand{}
+
+					case flipBackwardButton:
+						commandChannel <- drone.FlipBackwardCommand{}
+
+					case flipLeftButton:
+						commandChannel <- drone.FlipLeftCommand{}
+
+					case flipRightButton:
+						commandChannel <- drone.FlipRightCommand{}
 					}
 				}
 			}
@@ -111,6 +115,20 @@ func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
 
 		if ebiten.IsRunningSlowly() {
 			return nil
+		}
+
+		select {
+		case videoImage := <-videoChannel:
+			var err error
+			lastImage, err = ebiten.NewImageFromImage(*videoImage, ebiten.FilterDefault)
+			if err != nil {
+				panic("Unable to create image")
+			}
+		default:
+		}
+
+		if lastImage != nil {
+			screen.DrawImage(lastImage, nil)
 		}
 
 		return nil
