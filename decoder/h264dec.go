@@ -5,7 +5,7 @@ package decoder
 
 import (
 	/*
-	#cgo darwin LDFLAGS: -lavformat -lavutil -lavcodec
+	#cgo LDFLAGS: -lavformat -lavutil -lavcodec
 	#include "h264_decode.h"
 	*/
 	"C"
