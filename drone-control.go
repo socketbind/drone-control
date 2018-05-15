@@ -14,7 +14,7 @@ var commandChannel = make(chan interface{})
 func main() {
 	err := decoder.Init()
 	if err != nil {
-		log.Fatal("Unable to create decoder")
+		log.Fatal("Unable to create decoder", err)
 	}
 
 	defer decoder.Free()

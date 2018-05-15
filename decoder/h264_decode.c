@@ -1,3 +1,4 @@
+#include <libavutil/log.h>
 #include <libavcodec/avcodec.h>
 
 #include "h264_decode.h"
@@ -7,11 +8,13 @@ extern void handleFrame(AVFrame*);
 int h264dec_new(h264dec_t *h) {
     h->pkt = av_packet_alloc();
     if (!h->pkt) {
+        fprintf(stderr, "unable to allocate packet\n");
         return -1;
     }
 
     h->inbuf = (uint8_t*) malloc(INBUF_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);
     if (!h->inbuf) {
+        fprintf(stderr, "unable to malloc input buffer\n");
         return -1;
     }
 
@@ -19,21 +22,25 @@ int h264dec_new(h264dec_t *h) {
 
     h->c = avcodec_find_decoder(AV_CODEC_ID_H264);
     if (!h->c) {
+        fprintf(stderr, "unable to find the specified codec\n");
         return -1;
     }
 
     h->parser = av_parser_init(h->c->id);
     if (!h->parser) {
+        fprintf(stderr, "unable to init the parser\n");
         return -1;
     }
 
     h->ctx = avcodec_alloc_context3(h->c);
     if (!h->ctx) {
+        fprintf(stderr, "unable to allocate context\n");
         return -1;
     }
 
     h->f = av_frame_alloc();
     if (!h->f) {
+        fprintf(stderr, "unable to allocate frame\n");
         return -1;
     }
 
