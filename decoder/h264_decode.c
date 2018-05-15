@@ -6,6 +6,8 @@
 extern void handleFrame(AVFrame*);
 
 int h264dec_new(h264dec_t *h) {
+    avcodec_register_all();
+
     h->pkt = av_packet_alloc();
     if (!h->pkt) {
         fprintf(stderr, "unable to allocate packet\n");
