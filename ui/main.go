@@ -1,151 +1,197 @@
 package ui
 
 import (
-	"github.com/hajimehoshi/ebiten"
-	"log"
 	"image"
-	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/veandco/go-sdl2/sdl"
+	"log"
+	"github.com/socketbind/drone-control/util"
 	"github.com/socketbind/drone-control/drone"
-	"math"
 )
 
 const (
 	screenWidth  = 960
 	screenHeight = 720
 
-	takeOffButton = 1
-	flipForwardButton = 12
-	flipBackwardButton = 13
-	flipLeftButton = 14
-	flipRightButton = 15
+	takeOffButton = sdl.CONTROLLER_BUTTON_A
+	flipForwardButton = sdl.CONTROLLER_BUTTON_DPAD_UP
+	flipBackwardButton = sdl.CONTROLLER_BUTTON_DPAD_DOWN
+	flipLeftButton = sdl.CONTROLLER_BUTTON_DPAD_LEFT
+	flipRightButton = sdl.CONTROLLER_BUTTON_DPAD_RIGHT
 
-	deadZoneHorizontal = 0.5
-	deadZoneVertical = 0.5
+	deadZoneHorizontal = 16000
+	deadZoneVertical = 16000
 )
 
-func remapAxisInput(inputValue float64, deadZone float64, maxValue float64) int {
-	if math.Abs(inputValue) > deadZone {
+func remapAxisInput(inputValue int16, deadZone int16, maxOutputValue int16) int {
+	if util.Abs(inputValue) > deadZone {
 		if inputValue < 0 {
-			return int(((inputValue + deadZone) / (1.0 - deadZone)) * maxValue)
+			return int((float32(inputValue + deadZone) / float32(32767 - deadZone)) * float32(maxOutputValue))
 		} else if inputValue > 0 {
-			return int(((inputValue - deadZone) / (1.0 - deadZone)) * maxValue)
+			return int((float32(inputValue - deadZone) / float32(32767 - deadZone)) * float32(maxOutputValue))
 		}
 	}
 
 	return 0
 }
 
-func Start(videoChannel chan *image.Image, commandChannel chan interface{}) {
-	var lastImage *ebiten.Image = nil
-	var tookOff = false
+func openController(index int) *sdl.GameController {
+	if sdl.NumJoysticks() >= index + 1 {
+		if sdl.IsGameController(index) {
+			ctrl := sdl.GameControllerOpen(index)
 
-	update := func (screen *ebiten.Image) error {
-		for _, id := range inpututil.JustConnectedGamepadIDs() {
-			log.Printf("gamepad connected: id: %d", id)
+			name := sdl.GameControllerNameForIndex(index)
+			log.Println("Got controller: ", name)
+
+			sdl.GameControllerEventState(sdl.ENABLE)
+
+			return ctrl
+		} else {
+			log.Println("Joystick 0 is not a game controller somehow?")
 		}
+	} else {
+		log.Println("No joysticks with index ", index)
+	}
 
-		ids := ebiten.GamepadIDs()
-		if len(ids) > 0 {
-			id := ids[0]
+	return nil
+}
 
-			axis0 := ebiten.GamepadAxis(id, 0)
-			axis1 := ebiten.GamepadAxis(id, 1)
+func Start(videoChannel chan *image.YCbCr, commandChannel chan interface{}) {
+	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
+		panic(err)
+	}
+	defer sdl.Quit()
 
-			rotation := remapAxisInput(axis0, deadZoneHorizontal, 30)
-			if rotation != 0 {
-				if rotation < 0 {
-					commandChannel <- drone.RotateCounterClockwiseCommand{-rotation}
-				} else if rotation > 0 {
-					commandChannel <- drone.RotateClockwiseCommand{rotation}
-				}
-			}
+	window, err := sdl.CreateWindow("Drone Control", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
+		screenWidth, screenHeight, sdl.WINDOW_SHOWN)
+	if err != nil {
+		panic(err)
+	}
+	defer window.Destroy()
 
-			altitude := remapAxisInput(axis1, deadZoneVertical, 30)
-			if altitude != 0 {
-				if altitude < 0 {
-					commandChannel <- drone.UpCommand{-altitude}
-				} else if altitude > 0 {
-					commandChannel <- drone.DownCommand{altitude}
-				}
-			}
+	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+	if err != nil {
+		panic(err)
+	}
+	defer renderer.Destroy()
 
-			axis2 := ebiten.GamepadAxis(id, 2)
-			axis3 := ebiten.GamepadAxis(id, 3)
+	util.GameControllerAddMappingsFromFile("gamecontrollerdb.txt")
 
-			horizontalMovement := remapAxisInput(axis2, deadZoneHorizontal, 20)
-			if horizontalMovement != 0 {
-				if horizontalMovement < 0 {
-					commandChannel <- drone.LeftCommand{-horizontalMovement}
-				} else if horizontalMovement > 0 {
-					commandChannel <- drone.RightCommand{horizontalMovement}
-				}
-			}
+	gamepad := openController(0)
+	if gamepad != nil {
+		defer gamepad.Close()
+	}
 
-			verticalMovement := remapAxisInput(axis3, deadZoneVertical, 20)
-			if verticalMovement != 0 {
-				if verticalMovement < 0 {
-					commandChannel <- drone.ForwardCommand{-verticalMovement}
-				} else if verticalMovement > 0 {
-					commandChannel <- drone.BackwardCommand{verticalMovement}
-				}
-			}
+	mainLoop(videoChannel, commandChannel, renderer)
+}
 
-			maxButton := ebiten.GamepadButton(ebiten.GamepadButtonNum(id))
-			for b := ebiten.GamepadButton(id); b < maxButton; b++ {
-				if inpututil.IsGamepadButtonJustPressed(id, b) {
-					log.Printf("button pressed: id: %d, button: %d", id, b)
-				}
-				if inpututil.IsGamepadButtonJustReleased(id, b) {
-					log.Printf("button released: id: %d, button: %d", id, b)
-
-					switch b {
-
-					case takeOffButton:
-						if tookOff {
-							commandChannel <- drone.LandCommand{}
-						} else {
-							commandChannel <- drone.TakeOffCommand{}
-						}
-						tookOff = !tookOff
-
-					case flipForwardButton:
-						commandChannel <- drone.FlipForwardCommand{}
-
-					case flipBackwardButton:
-						commandChannel <- drone.FlipBackwardCommand{}
-
-					case flipLeftButton:
-						commandChannel <- drone.FlipLeftCommand{}
-
-					case flipRightButton:
-						commandChannel <- drone.FlipRightCommand{}
-					}
-				}
+func handleControllerAxisEvent(event *sdl.ControllerAxisEvent, commandChannel chan interface{}) {
+	if event.Axis == sdl.CONTROLLER_AXIS_LEFTX {
+		rotation := remapAxisInput(event.Value, deadZoneHorizontal, 30)
+		if rotation != 0 {
+			if rotation < 0 {
+				commandChannel <- drone.RotateCounterClockwiseCommand{-rotation}
+			} else if rotation > 0 {
+				commandChannel <- drone.RotateClockwiseCommand{rotation}
 			}
 		}
+	} else if event.Axis == sdl.CONTROLLER_AXIS_LEFTY {
+		altitude := remapAxisInput(event.Value, deadZoneVertical, 30)
+		if altitude != 0 {
+			if altitude < 0 {
+				commandChannel <- drone.UpCommand{-altitude}
+			} else if altitude > 0 {
+				commandChannel <- drone.DownCommand{altitude}
+			}
+		}
+	}
+}
 
-		if ebiten.IsRunningSlowly() {
-			return nil
+var tookOff = false
+func handleControllerButtonEvent(event *sdl.ControllerButtonEvent, commandChannel chan interface{}) {
+	if event.State == sdl.PRESSED {
+		switch event.Button {
+		case takeOffButton:
+			if tookOff {
+				commandChannel <- drone.LandCommand{}
+			} else {
+				commandChannel <- drone.TakeOffCommand{}
+			}
+			tookOff = !tookOff
+
+		case flipForwardButton:
+			commandChannel <- drone.FlipForwardCommand{}
+
+		case flipBackwardButton:
+			commandChannel <- drone.FlipBackwardCommand{}
+
+		case flipLeftButton:
+			commandChannel <- drone.FlipLeftCommand{}
+
+		case flipRightButton:
+			commandChannel <- drone.FlipRightCommand{}
+		}
+	}
+}
+
+func mainLoop(videoChannel chan *image.YCbCr, commandChannel chan interface{}, renderer *sdl.Renderer) {
+	var err error
+	var videoTexture *sdl.Texture = nil
+	var videoBounds *sdl.Rect = nil
+
+	screenRect := &sdl.Rect{0, 0, screenWidth, screenHeight}
+
+	running := true
+	for running {
+		for polledEvent := sdl.PollEvent(); polledEvent != nil; polledEvent = sdl.PollEvent() {
+			switch event := polledEvent.(type) {
+			case *sdl.QuitEvent:
+				running = false
+			case *sdl.ControllerAxisEvent:
+				handleControllerAxisEvent(event, commandChannel)
+			case *sdl.ControllerButtonEvent:
+				handleControllerButtonEvent(event, commandChannel)
+			}
 		}
 
 		select {
 		case videoImage := <-videoChannel:
-			var err error
-			lastImage, err = ebiten.NewImageFromImage(*videoImage, ebiten.FilterDefault)
-			if err != nil {
-				panic("Unable to create image")
+			if videoTexture == nil {
+				videoTexture, err = renderer.CreateTexture(sdl.PIXELFORMAT_IYUV, sdl.TEXTUREACCESS_STREAMING, 960, 720)
+				if err != nil {
+					panic(err)
+				}
+
+				videoBounds = &sdl.Rect{
+					0, 0,
+					int32(videoImage.Bounds().Max.X), int32(videoImage.Bounds().Max.Y),
+				}
 			}
+
+			videoTexture.UpdateYUV(
+				videoBounds,
+				videoImage.Y,
+				videoImage.YStride,
+				videoImage.Cb,
+				videoImage.CStride,
+				videoImage.Cr,
+				videoImage.CStride)
 		default:
 		}
 
-		if lastImage != nil {
-			screen.DrawImage(lastImage, nil)
+		renderer.Clear()
+		renderer.SetDrawColor(255, 0, 0, 255)
+		renderer.FillRect(screenRect)
+
+		if videoTexture != nil && videoBounds != nil {
+			renderer.Copy(videoTexture, videoBounds, screenRect)
 		}
 
-		return nil
+		renderer.Present()
+
+		sdl.Delay(1000 / 30)
 	}
 
-	if err := ebiten.Run(update, screenWidth, screenHeight, 1, "Drone Control"); err != nil {
-		log.Fatal(err)
+	if videoTexture != nil {
+		videoTexture.Destroy()
 	}
 }

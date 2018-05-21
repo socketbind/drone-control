@@ -8,7 +8,7 @@ import (
 	"github.com/socketbind/drone-control/ui"
 )
 
-var videoChannel = make(chan *image.Image)
+var videoChannel = make(chan *image.YCbCr)
 var commandChannel = make(chan interface{})
 
 func main() {

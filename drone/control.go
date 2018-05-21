@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{}) {
+func DroneControl(videoChannel chan *image.YCbCr, commandChannel chan interface{}) {
 	os.MkdirAll("recordings", os.ModePerm)
 	t := time.Now()
 
@@ -24,7 +24,7 @@ func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{
 
 	drone := tello.NewDriver("8890")
 
-	imageHandler := func(im *image.Image) {
+	imageHandler := func(im *image.YCbCr) {
 		videoChannel <- im
 	}
 
@@ -86,12 +86,16 @@ func DroneControl(videoChannel chan *image.Image, commandChannel chan interface{
 					log.Printf("Going backward %d", cmd.Value)
 					drone.Backward(cmd.Value)
 				case FlipForwardCommand:
+					log.Println("Flip forward")
 					drone.FrontFlip()
 				case FlipBackwardCommand:
+					log.Println("Flip backward")
 					drone.BackFlip()
 				case FlipLeftCommand:
+					log.Println("Flip left")
 					drone.LeftFlip()
 				case FlipRightCommand:
+					log.Println("Flip right")
 					drone.RightFlip()
 				}
 			}

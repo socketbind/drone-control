@@ -16,7 +16,7 @@ import (
 
 var m C.h264dec_t
 
-type frameHandlerFunc func(*image.Image)
+type frameHandlerFunc func(*image.YCbCr)
 
 var frameHandler frameHandlerFunc
 
@@ -50,9 +50,7 @@ func handleFrame(f *C.AVFrame) {
 			Rect: image.Rect(0, 0, w, h),
 		}
 
-		im := raw.SubImage(raw.Bounds())
-
-		frameHandler(&im)
+		frameHandler(raw)
 	}
 }
 
