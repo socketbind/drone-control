@@ -103,6 +103,24 @@ func handleControllerAxisEvent(event *sdl.ControllerAxisEvent, commandChannel ch
 				commandChannel <- drone.DownCommand{altitude}
 			}
 		}
+	} else if event.Axis == sdl.CONTROLLER_AXIS_RIGHTX {
+		horizontalMovement := remapAxisInput(event.Value, deadZoneHorizontal, 20)
+		if horizontalMovement != 0 {
+			if horizontalMovement < 0 {
+				commandChannel <- drone.LeftCommand{-horizontalMovement}
+			} else if horizontalMovement > 0 {
+				commandChannel <- drone.RightCommand{horizontalMovement}
+			}
+		}
+	} else if event.Axis == sdl.CONTROLLER_AXIS_RIGHTY {
+		verticalMovement := remapAxisInput(event.Value, deadZoneVertical, 20)
+		if verticalMovement != 0 {
+			if verticalMovement < 0 {
+				commandChannel <- drone.ForwardCommand{-verticalMovement}
+			} else if verticalMovement > 0 {
+				commandChannel <- drone.BackwardCommand{verticalMovement}
+			}
+		}
 	}
 }
 
