@@ -40,6 +40,16 @@ These are meant for Dualshock 4 controllers. Yours might be completely different
 
 ## Installation
 
+### Prerequisites (Ubuntu 18.04)
+
+```
+sudo apt-get install libavcodec-dev libavformat-dev libxcursor-dev libxrandr-dev libglfw3-dev libxinerama-dev libxi-dev
+```
+
+_Thanks dantam74_
+
+### Compile
+
 ```
 go get github.com/socketbind/drone-control
 $GOPATH/bin/drone-control
